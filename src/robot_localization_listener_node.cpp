@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, 2016, Charles River Analytics, Inc.
+ * Copyright (c) 2016, TNO IVS Helmond.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ private:
     Eigen::VectorXd state(RobotLocalization::STATE_SIZE);
     Eigen::MatrixXd covariance(RobotLocalization::STATE_SIZE,RobotLocalization::STATE_SIZE);
 
-    if ( !rll_.getState(req.time_stamp, state, covariance) )
+    if ( !rll_.getState(req.time_stamp, req.frame_id, state, covariance) )
     {
       ROS_ERROR("Robot Localization Listener Node: Listener instance returned false at getState call.");
       return false;

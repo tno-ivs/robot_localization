@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, 2016, Charles River Analytics, Inc.
+ * Copyright (c) 2016, TNO IVS Helmond.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ void RobotLocalizationEstimator::setState(const EstimatorState& state)
   {
     for ( boost::circular_buffer<EstimatorState>::iterator it = state_buffer_.begin(); it != state_buffer_.end(); ++it )
     {
-      if ( state.time_stamp <= it->time_stamp )
+      if ( state.time_stamp < it->time_stamp )
       {
         state_buffer_.insert(it, state);
         return;

@@ -16,16 +16,19 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_geometry_msgs
-  tf2_ros)
+  tf2_ros
+  eigen_conversions)
 
 # Attempt to find Eigen using its own CMake module.
 # If that fails, fall back to cmake_modules package.
 find_package(Eigen3)
+set(EIGEN_PACKAGE EIGEN3)
 if(NOT EIGEN3_FOUND)
   find_package(cmake_modules REQUIRED)
   find_package(Eigen REQUIRED)
   set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
   set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})
+  set(EIGEN_PACKAGE Eigen)
 endif()
 
 add_definitions(-DEIGEN_NO_DEBUG -DEIGEN_MPL2_ONLY)
@@ -76,7 +79,8 @@ catkin_package(
     tf2
     tf2_geometry_msgs
     tf2_ros
-  DEPENDS Eigen
+    eigen_conversions
+  DEPENDS ${EIGEN_PACKAGE}
 )
 
 ###########
@@ -236,9 +240,9 @@ if (CATKIN_ENABLE_TESTING)
   target_link_libraries(test_ukf_localization_node_bag3 ${catkin_LIBRARIES} ${rostest_LIBRARIES})
 
   #### RLE/RLL TESTS #####
-  add_rostest_gtest(test_rle
+  add_rostest_gtest(test_robot_localization_estimator
                     test/test_robot_localization_estimator.test
                     test/test_robot_localization_estimator.cpp)
-  target_link_libraries(test_rle robot_localization_estimator ${catkin_LIBRARIES} ${rostest_LIBRARIES})
+  target_link_libraries(test_robot_localization_estimator robot_localization_estimator ${catkin_LIBRARIES} ${rostest_LIBRARIES})
 
 endif()

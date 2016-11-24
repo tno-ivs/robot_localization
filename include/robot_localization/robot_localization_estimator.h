@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, TNO IVS Helmond.
+ * Copyright (c) 2016, TNO IVS Helmond.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,12 @@
 
 namespace RobotLocalization
 {
+
+struct Twist
+{
+    Eigen::Vector3d linear;
+    Eigen::Vector3d angular;
+};
 
 //! @brief Robot Localization Estimator State
 //!
