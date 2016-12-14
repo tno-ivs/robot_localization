@@ -83,6 +83,10 @@ struct EstimatorState
   }
 };
 
+//! @brief Estimator result enum
+//!
+//! This enum specifies the different possible outcomes of a call to RobotLocalizationEstimator::getState().
+//!
 namespace EstimatorResults
 {
 enum EstimatorResult
@@ -96,6 +100,10 @@ enum EstimatorResult
 }  // namespace EstimatorResults
 typedef EstimatorResults::EstimatorResult EstimatorResult;
 
+//! @brief Filter type enum
+//!
+//! This enum specifies the different filter types that can be used for prediction in the robot localization estimator.
+//!
 namespace FilterTypes
 {
 enum FilterType
@@ -107,7 +115,7 @@ enum FilterType
 }  // namespace EstimatorResults
 typedef FilterTypes::FilterType FilterType;
 
-//! @brief Robot Localization Listener class
+//! @brief Robot Localization Estimator class
 //!
 //! The Robot Localization Estimator class buffers states of and inputs to a system and can interpolate and extrapolate
 //! based on a given system model.
@@ -115,20 +123,22 @@ typedef FilterTypes::FilterType FilterType;
 class RobotLocalizationEstimator
 {
 public:
-  //! @brief Constructor for the RobotLocalizationListener class
+  //! @brief Constructor for the RobotLocalizationEstimator class
   //!
-  //! @param[in] args - Generic argument container (not used here, but needed so that the ROS filters can pass arbitrary
-  //! arguments to templated filter types).
+  //! @param[in] buffer_capacity - The maximum number of estimator state instances the buffer can hold.
+  //! @param[in] filter_type - The filter type that should be used for prediction given the buffered states.
+  //! @param[in] args - Generic argument container for filter arguments. Should agree with the arguments that the filter
+  //! specified in filter_type expects.
   //!
   explicit RobotLocalizationEstimator(unsigned int buffer_capacity,
                                       FilterType filter_type,
                                       const std::vector<double>& filter_args);
 
-  //! @brief Destructor for the RobotLocalizationListener class
+  //! @brief Destructor for the RobotLocalizationEstimator class
   //!
   virtual ~RobotLocalizationEstimator();
 
-  //! @brief Sets the current internal state of the listener.
+  //! @brief Sets the current internal state of the estimator.
   //!
   //! @param[in] state - The new state vector to set the internal state to
   //!
@@ -136,7 +146,7 @@ public:
 
   //! @brief Returns the state at a given time
   //!
-  //! Projects the current state and error matrices forward using a model of the robot's motion.
+  //! Projects the current state and error matrices forward using the prediction method of the user specified filter.
   //!
   //! @param[in] time - The time to which the prediction is being made
   //! @param[out] state - The returned state at the given time
