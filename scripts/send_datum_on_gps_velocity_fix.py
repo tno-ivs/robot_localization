@@ -3,7 +3,7 @@
 import rospy
 from sensor_msgs.msg import NavSatFix
 from tf import transformations
-from geometry_msgs.msg import TwistStamped, Quaternion
+from geometry_msgs.msg import TwistStamped, Quaternion, Vector3Stamped
 from math import atan2, hypot
 
 from robot_localization.srv import SetDatum, SetDatumRequest
@@ -24,6 +24,18 @@ def twist_callback(msg):
         TWIST = msg
 
 
+def vector_callback(msg):
+    """
+    Vector callback from GPS
+    :param msg: The vector msg
+    """
+    global TWIST
+    if hypot(msg.vector.x, msg.vector.y) > VELOCITY_MAGNITUDE_THRESHOLD:
+        rospy.loginfo("Received valid Velocity")
+        TWIST = TwistStamped(header=msg.header)
+        TWIST.twist.linear = msg.vector
+
+
 def gps_callback(msg):
     """
     NavsatFix callback from gps
@@ -39,6 +51,7 @@ if __name__ == '__main__':
     VELOCITY_MAGNITUDE_THRESHOLD = rospy.get_param('~velocity_magnitude_threshold', 2.0)
     sub = rospy.Subscriber("gps/fix", NavSatFix, gps_callback, queue_size=1)
     sub_vel = rospy.Subscriber("gps/vel", TwistStamped, twist_callback, queue_size=1)
+    sub_vel_vector = rospy.Subscriber("gps/vel_vector", Vector3Stamped, vector_callback, queue_size=1)
 
     srv_name = "datum"
     rospy.loginfo("Waiting for %s srv" % srv_name)
