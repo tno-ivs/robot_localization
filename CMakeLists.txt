@@ -4,6 +4,7 @@ project(robot_localization)
 find_package(catkin REQUIRED COMPONENTS
   diagnostic_msgs
   diagnostic_updater
+  eigen_conversions
   geographic_msgs
   geometry_msgs
   message_filters
@@ -16,8 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_geometry_msgs
-  tf2_ros
-  eigen_conversions)
+  tf2_ros)
 
 # Attempt to find Eigen using its own CMake module.
 # If that fails, fall back to cmake_modules package.
@@ -40,9 +40,9 @@ roslint_cpp()
 ###################################
 add_service_files(
   FILES
-  SetPose.srv
-  SetDatum.srv
   GetState.srv
+  SetDatum.srv
+  SetPose.srv
 )
 
 generate_messages(
@@ -68,6 +68,7 @@ catkin_package(
     cmake_modules
     diagnostic_msgs
     diagnostic_updater
+    eigen_conversions
     geographic_msgs
     geometry_msgs
     message_filters
@@ -79,7 +80,6 @@ catkin_package(
     tf2
     tf2_geometry_msgs
     tf2_ros
-    eigen_conversions
   DEPENDS ${EIGEN_PACKAGE}
 )
 
@@ -119,14 +119,14 @@ target_link_libraries(filter_base filter_utilities ${catkin_LIBRARIES} ${EIGEN3_
 target_link_libraries(ekf filter_base ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
 target_link_libraries(ukf filter_base ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
 target_link_libraries(ros_filter ekf ukf ros_filter_utilities ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
-target_link_libraries(robot_localization_estimator filter_utilities ${EIGEN3_LIBRARIES})
-target_link_libraries(ros_robot_localization_listener robot_localization_estimator ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
+target_link_libraries(robot_localization_estimator filter_utilities filter_base ekf ukf ${EIGEN3_LIBRARIES})
+target_link_libraries(ros_robot_localization_listener robot_localization_estimator ros_filter_utilities
+  ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
 target_link_libraries(robot_localization_listener_node ros_robot_localization_listener ${catkin_LIBRARIES})
 target_link_libraries(ekf_localization_node ros_filter ${catkin_LIBRARIES})
 target_link_libraries(ukf_localization_node ros_filter ${catkin_LIBRARIES})
 target_link_libraries(navsat_transform filter_utilities ros_filter_utilities ${catkin_LIBRARIES} ${EIGEN3_LIBRARIES})
 target_link_libraries(navsat_transform_node navsat_transform ${catkin_LIBRARIES})
-
 
 #############
 ## Install ##
