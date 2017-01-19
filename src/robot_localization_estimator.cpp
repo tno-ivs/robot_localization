@@ -34,13 +34,18 @@
 #include "robot_localization/ekf.h"
 #include "robot_localization/ukf.h"
 
+#include <vector>
+
 namespace RobotLocalization
 {
 RobotLocalizationEstimator::RobotLocalizationEstimator(unsigned int buffer_capacity,
                                                        FilterType filter_type,
+                                                       const Eigen::MatrixXd& process_noise_covariance,
                                                        const std::vector<double>& filter_args)
 {
   state_buffer_.set_capacity(buffer_capacity);
+
+  // Set up the filter that is used for predictions
   if ( filter_type == FilterTypes::EKF )
   {
     filter_ = new Ekf;
@@ -49,6 +54,8 @@ RobotLocalizationEstimator::RobotLocalizationEstimator(unsigned int buffer_capac
   {
     filter_ = new Ukf(filter_args);
   }
+
+  filter_->setProcessNoiseCovariance(process_noise_covariance);
 }
 
 RobotLocalizationEstimator::~RobotLocalizationEstimator()
@@ -99,11 +106,16 @@ EstimatorResult RobotLocalizationEstimator::getState(const double time,
        it != state_buffer_.rend(); ++it)
   {
     /* If the time stamp of the current state from the buffer is
-       * older than the requested time, store it as the last state
-       * before the requested time. If it is younger, save it as the
-       * next one after, and go on to find the last one before.
-       */
-    if ( it->time_stamp <= time )
+     * older than the requested time, store it as the last state
+     * before the requested time. If it is younger, save it as the
+     * next one after, and go on to find the last one before.
+     */
+    if ( it->time_stamp == time )
+    {
+      state = *it;
+      return EstimatorResults::Exact;
+    }
+    else if ( it->time_stamp <= time )
     {
       last_state_before_time = *it;
       previous_state_found = true;
@@ -178,7 +190,7 @@ void RobotLocalizationEstimator::extrapolate(const EstimatorState& boundary_stat
   filter_->predict(boundary_state.time_stamp, delta);
 
   state_at_req_time.time_stamp = requested_time;
-  state_at_req_time.state = filter_->getPredictedState();
+  state_at_req_time.state = filter_->getState();
   state_at_req_time.covariance = filter_->getEstimateErrorCovariance();
 
   return;

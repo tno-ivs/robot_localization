@@ -42,6 +42,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <eigen_conversions/eigen_msg.h>
 
+#include <XmlRpcException.h>
+
 namespace RobotLocalization
 {
 
@@ -78,14 +80,71 @@ RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns
   FilterType filter_type = filterTypeFromString(filter_type_str);
   if ( filter_type == FilterTypes::NotDefined )
   {
-    ROS_FATAL("RosRobotLocalizationListener: Parameter filter_type invalid");
+    ROS_ERROR("RosRobotLocalizationListener: Parameter filter_type invalid");
     return;
+  }
+
+  // Load up the process noise covariance (from the launch file/parameter server)
+  // todo: this is copied from ros_filter. In a refactor, this could be moved to a function in ros_filter_utilities
+  Eigen::MatrixXd process_noise_covariance(STATE_SIZE, STATE_SIZE);
+  process_noise_covariance.setZero();
+  XmlRpc::XmlRpcValue process_noise_covar_config;
+
+  if (!nh_p_.hasParam("process_noise_covariance"))
+  {
+    ROS_FATAL_STREAM("Process noise covariance not found in the robot localization listener config (namespace " <<
+                     nh_p_.getNamespace() << ")!");
+  }
+  else
+  {
+    try
+    {
+      nh_p_.getParam("process_noise_covariance", process_noise_covar_config);
+
+      ROS_ASSERT(process_noise_covar_config.getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+      int mat_size = process_noise_covariance.rows();
+
+      for (int i = 0; i < mat_size; i++)
+      {
+        for (int j = 0; j < mat_size; j++)
+        {
+          try
+          {
+            // These matrices can cause problems if all the types
+            // aren't specified with decimal points. Handle that
+            // using string streams.
+            std::ostringstream ostr;
+            process_noise_covar_config[mat_size * i + j].write(ostr);
+            std::istringstream istr(ostr.str());
+            istr >> process_noise_covariance(i, j);
+          }
+          catch(XmlRpc::XmlRpcException &e)
+          {
+            throw e;
+          }
+          catch(...)
+          {
+            throw;
+          }
+        }
+      }
+
+      ROS_DEBUG_STREAM("Process noise covariance is:\n" << process_noise_covariance << "\n");
+    }
+    catch (XmlRpc::XmlRpcException &e)
+    {
+      ROS_ERROR_STREAM("ERROR reading robot localization listener config: " <<
+                       e.getMessage() <<
+                       " for process_noise_covariance (type: " <<
+                       process_noise_covar_config.getType() << ")");
+    }
   }
 
   std::vector<double> filter_args;
   nh_p_.param("filter_args", filter_args, std::vector<double>());
 
-  estimator_ = new RobotLocalizationEstimator(buffer_size, filter_type, filter_args);
+  estimator_ = new RobotLocalizationEstimator(buffer_size, filter_type, process_noise_covariance, filter_args);
 
   sync_.registerCallback(&RosRobotLocalizationListener::odomAndAccelCallback, this);
 
@@ -268,6 +327,7 @@ bool RosRobotLocalizationListener::getState(const double time,
   state(StateMemberYaw)   = ypr[0];
 
   // Now let's calculate the twist of the target frame
+  // First get the base's twist
   Twist base_velocity;
   Twist target_velocity_base;
   base_velocity.linear = Eigen::Vector3d(estimator_state.state(StateMemberVx),
@@ -277,11 +337,17 @@ bool RosRobotLocalizationListener::getState(const double time,
                                           estimator_state.state(StateMemberVpitch),
                                           estimator_state.state(StateMemberVyaw));
 
-  Eigen::Vector3d target_position_base = target_pose_base.translation();
-  target_velocity_base.linear = base_velocity.linear + base_velocity.angular.cross(target_position_base);
+  // Then calculate the target frame's twist as a result of the base's twist.
+  /*
+   * We first calculate the coordinates of the velocity vectors (linear and angular) in the base frame. We have to keep
+   * in mind that a rotation of the base frame, together with the translational offset of the target frame from the base
+   * frame, induces a translational velocity of the target frame.
+   */
+  target_velocity_base.linear = base_velocity.linear + base_velocity.angular.cross(target_pose_base.translation());
   target_velocity_base.angular = base_velocity.angular;
-  Twist target_velocity;
 
+  // Now we can transform that to the target frame
+  Twist target_velocity;
   target_velocity.linear = target_pose_base.rotation().transpose() * target_velocity_base.linear;
   target_velocity.angular = target_pose_base.rotation().transpose() * target_velocity_base.angular;
 
