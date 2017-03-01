@@ -127,7 +127,7 @@ TEST(RLETest, StateBuffer)
 
   // Estimate a state that is not in the buffer, but can be determined by interpolation. The predicted state vector
   // should be equal to the designed state at the requested time.
-  EXPECT_EQ(RobotLocalization::EstimatorResults::Interpolation,
+  EXPECT_EQ(RobotLocalization::EstimatorResults::Blending,
             estimator.getState(states[4].time_stamp, state));
   EXPECT_EQ(states[4].state, state.state);
 

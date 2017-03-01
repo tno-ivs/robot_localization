@@ -41,7 +41,8 @@ namespace RobotLocalization
 RobotLocalizationEstimator::RobotLocalizationEstimator(unsigned int buffer_capacity,
                                                        FilterType filter_type,
                                                        const Eigen::MatrixXd& process_noise_covariance,
-                                                       const std::vector<double>& filter_args)
+                                                       const std::vector<double>& filter_args):
+  process_noise_covariance_(process_noise_covariance)
 {
   state_buffer_.set_capacity(buffer_capacity);
 
@@ -54,8 +55,6 @@ RobotLocalizationEstimator::RobotLocalizationEstimator(unsigned int buffer_capac
   {
     filter_ = new Ukf(filter_args);
   }
-
-  filter_->setProcessNoiseCovariance(process_noise_covariance);
 }
 
 RobotLocalizationEstimator::~RobotLocalizationEstimator()
@@ -131,8 +130,8 @@ EstimatorResult RobotLocalizationEstimator::getState(const double time,
   // If we found a previous state and a next state, we can do interpolation
   if ( previous_state_found && next_state_found )
   {
-    interpolate(last_state_before_time, next_state_after_time, time, state);
-    return EstimatorResults::Interpolation;
+    blend(last_state_before_time, next_state_after_time, time, state);
+    return EstimatorResults::Blending;
   }
 
   // If only a previous state is found, we can do extrapolation into the future
@@ -177,8 +176,19 @@ unsigned int RobotLocalizationEstimator::getSize() const
 
 void RobotLocalizationEstimator::extrapolate(const EstimatorState& boundary_state,
                                              const double requested_time,
-                                             EstimatorState& state_at_req_time) const
+                                             EstimatorState& state_at_req_time,
+                                             bool add_process_noise) const
 {
+  if ( add_process_noise )
+  {
+    filter_->setProcessNoiseCovariance(process_noise_covariance_);
+  }
+  else
+  {
+    Eigen::MatrixXd zeros = Eigen::MatrixXd::Zero(process_noise_covariance_.rows(), process_noise_covariance_.cols());
+    filter_->setProcessNoiseCovariance(zeros);
+  }
+
   // Set up the filter with the boundary state
   filter_->setState(boundary_state.state);
   filter_->setEstimateErrorCovariance(boundary_state.covariance);
@@ -196,16 +206,33 @@ void RobotLocalizationEstimator::extrapolate(const EstimatorState& boundary_stat
   return;
 }
 
-void RobotLocalizationEstimator::interpolate(const EstimatorState& given_state_1,
-                                             const EstimatorState& given_state_2,
-                                             const double requested_time,
-                                             EstimatorState& state_at_req_time) const
+void RobotLocalizationEstimator::blend(const EstimatorState& given_state_1,
+                                       const EstimatorState& given_state_2,
+                                       const double requested_time,
+                                       EstimatorState& state_at_req_time) const
 {
   /*
-   * TODO: Right now, we only extrapolate from the last known state before the requested time. But as the state after
-   * the requested time is also known, we may want to perform interpolation between states.
+   * Blending of covariances is performed as explained in EFFICIENT COVARIANCE INTERPOLATION USING BLENDING OF
+   * APPROXIMATE STATE ERROR TRANSITIONS by Sergey Tanygin
+   * (http://www.agi.com/downloads/resources/white-papers/CovarianceInterpolationFinal.pdf). We use a cubic polynomial
+   * blending function to meet the acceleration boundary conditions at both sides of the blending interval.
    */
-  extrapolate(given_state_1, requested_time, state_at_req_time);
+  EstimatorState forward_propagation;
+  extrapolate(given_state_1, requested_time, forward_propagation, false);
+
+  EstimatorState backward_propagation;
+  extrapolate(given_state_2, requested_time, backward_propagation, false);
+
+  double tau = (requested_time - given_state_1.time_stamp)/(given_state_2.time_stamp - given_state_1.time_stamp);
+  double tau_sq = tau*tau;
+  double tau_cb = tau_sq*tau;
+  double beta = 3*tau_sq - 2*tau_cb;
+
+  state_at_req_time.covariance = forward_propagation.covariance * (1-beta) + backward_propagation.covariance * beta;
+
+  // @todo(rokus): The state vector cannot be blended in the same way, because the euler angles are wrapped...
+  state_at_req_time.state = forward_propagation.state * (1-beta) + backward_propagation.state * beta;
+
   return;
 }
 

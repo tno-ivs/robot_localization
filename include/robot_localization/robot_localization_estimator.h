@@ -88,7 +88,7 @@ namespace EstimatorResults
 enum EstimatorResult
 {
   ExtrapolationIntoFuture = 0,
-  Interpolation,
+  Blending,
   ExtrapolationIntoPast,
   Exact,
   EmptyBuffer,
@@ -190,10 +190,12 @@ private:
   //! @param[in] boundary_state - state from which to extrapolate
   //! @param[in] requested_time - time stamp to extrapolate to
   //! @param[out] state_at_req_time - predicted state at requested time
+  //! @param[in] use_process_noise_covariance - whether to add process noise or not
   //!
   void extrapolate(const EstimatorState& boundary_state,
                    const double requested_time,
-                   EstimatorState& state_at_req_time) const;
+                   EstimatorState& state_at_req_time,
+                   bool add_process_noise = true) const;
 
   //! @brief Interpolates the given state to a requested time stamp
   //!
@@ -202,7 +204,7 @@ private:
   //! @param[in] requested_time - time stamp to extrapolate to
   //! @param[out] state_at_req_time - predicted state at requested time
   //!
-  void interpolate(const EstimatorState& given_state_1, const EstimatorState& given_state_2,
+  void blend(const EstimatorState& given_state_1, const EstimatorState& given_state_2,
                    const double requested_time, EstimatorState& state_at_req_time) const;
 
   //!
@@ -215,6 +217,11 @@ private:
   //! @brief A pointer to the filter instance that is used for extrapolation
   //!
   FilterBase* filter_;
+
+  //!
+  //! @brief The process noise covariance matrix used in the filter to which this instance listens
+  //!
+  Eigen::MatrixXd process_noise_covariance_;
 };
 
 }  // namespace RobotLocalization
