@@ -285,8 +285,8 @@ bool RosRobotLocalizationListener::getState(const double time,
   {
     if ( estimator_->getSize() == 0 )
     {
-      ROS_WARN("Ros Robot Localization Listener: The base or world frame id is not set. "
-               "No odom/accel messages have come in.");
+      ROS_WARN_DELAYED_THROTTLE(5.0, "Ros Robot Localization Listener: The base or world frame id is not set. "
+                                     "No odom/accel messages have come in.");
     }
     else
     {
@@ -349,7 +349,8 @@ bool RosRobotLocalizationListener::getState(const double time,
     }
     catch ( tf2::TransformException e )
     {
-      ROS_WARN_STREAM("Ros Robot Localization Listener: Could not look up transform: " << e.what());
+      ROS_WARN_STREAM_DELAYED_THROTTLE(5.0, "Ros Robot Localization Listener: Could not look up transform: "
+                                       << e.what());
       return false;
     }
 
@@ -381,7 +382,7 @@ bool RosRobotLocalizationListener::getState(const double time,
   }
   catch ( tf2::TransformException e )
   {
-    ROS_WARN_STREAM("Ros Robot Localization Listener: Could not look up transform: " << e.what());
+    ROS_WARN_STREAM_DELAYED_THROTTLE(5.0, "Ros Robot Localization Listener: Could not look up transform: " << e.what());
     return false;
   }
 
