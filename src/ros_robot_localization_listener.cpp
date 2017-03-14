@@ -67,8 +67,8 @@ FilterType filterTypeFromString(const std::string& filter_type_str)
 RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns):
   nh_(ns),
   nh_p_("~"+ns),
-  odom_sub_(nh_, "odometry", 1),
-  accel_sub_(nh_, "accel", 1),
+  odom_sub_(nh_, "odometry/filtered", 1),
+  accel_sub_(nh_, "accel/filtered", 1),
   sync_(odom_sub_, accel_sub_, 10),
   tf_listener_(tf_buffer_),
   base_frame_id_(""),
@@ -97,20 +97,16 @@ RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns
   process_noise_covariance.setZero();
   XmlRpc::XmlRpcValue process_noise_covar_config;
 
-  // Get the process noise from the parameter in the namespace of the filter node we're listening to.
-  std::string process_noise_param_namespace = odom_sub_.getTopic().substr(0, odom_sub_.getTopic().find_last_of('/'));
-  std::string process_noise_param = process_noise_param_namespace + "/process_noise_covariance";
-
-  if (!nh_param.hasParam(process_noise_param))
+  if (!nh_param.hasParam("process_noise_covariance"))
   {
-    ROS_ERROR_STREAM("Process noise covariance not found in the robot localization listener config (namespace " <<
-                     process_noise_param_namespace << ")!");
+    ROS_FATAL_STREAM("Process noise covariance not found in the robot localization listener config (namespace " <<
+                     nh_param.getNamespace() << ")! Use the ~parameter_namespace to specify the parameter namespace.");
   }
   else
   {
     try
     {
-      nh_param.getParam(process_noise_param, process_noise_covar_config);
+      nh_param.getParam("process_noise_covariance", process_noise_covar_config);
 
       ROS_ASSERT(process_noise_covar_config.getType() == XmlRpc::XmlRpcValue::TypeArray);
 
