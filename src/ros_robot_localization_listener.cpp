@@ -64,9 +64,8 @@ FilterType filterTypeFromString(const std::string& filter_type_str)
   }
 }
 
-RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns):
-  nh_(ns),
-  nh_p_("~"+ns),
+RosRobotLocalizationListener::RosRobotLocalizationListener():
+  nh_p_("robot_localization"),
   odom_sub_(nh_, "odometry/filtered", 1),
   accel_sub_(nh_, "accel/filtered", 1),
   sync_(odom_sub_, accel_sub_, 10),
@@ -77,13 +76,8 @@ RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns
   int buffer_size;
   nh_p_.param("buffer_size", buffer_size, 10);
 
-  std::string param_ns;
-  nh_p_.param("parameter_namespace", param_ns, nh_p_.getNamespace());
-
-  ros::NodeHandle nh_param(param_ns);
-
   std::string filter_type_str;
-  nh_param.param("filter_type", filter_type_str, std::string("ekf"));
+  nh_p_.param("filter_type", filter_type_str, std::string("ekf"));
   FilterType filter_type = filterTypeFromString(filter_type_str);
   if ( filter_type == FilterTypes::NotDefined )
   {
@@ -97,16 +91,16 @@ RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns
   process_noise_covariance.setZero();
   XmlRpc::XmlRpcValue process_noise_covar_config;
 
-  if (!nh_param.hasParam("process_noise_covariance"))
+  if (!nh_p_.hasParam("process_noise_covariance"))
   {
     ROS_FATAL_STREAM("Process noise covariance not found in the robot localization listener config (namespace " <<
-                     nh_param.getNamespace() << ")! Use the ~parameter_namespace to specify the parameter namespace.");
+                     nh_p_.getNamespace() << ")! Remap 'robot_localization' to the correct namespace.");
   }
   else
   {
     try
     {
-      nh_param.getParam("process_noise_covariance", process_noise_covar_config);
+      nh_p_.getParam("process_noise_covariance", process_noise_covar_config);
 
       ROS_ASSERT(process_noise_covar_config.getType() == XmlRpc::XmlRpcValue::TypeArray);
 
@@ -149,7 +143,7 @@ RosRobotLocalizationListener::RosRobotLocalizationListener(const std::string& ns
   }
 
   std::vector<double> filter_args;
-  nh_param.param("filter_args", filter_args, std::vector<double>());
+  nh_p_.param("filter_args", filter_args, std::vector<double>());
 
   estimator_ = new RobotLocalizationEstimator(buffer_size, filter_type, process_noise_covariance, filter_args);
 
