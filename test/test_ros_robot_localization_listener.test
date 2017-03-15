@@ -62,7 +62,7 @@
     </node>
 
     <test test-name="test_ros_robot_localization_listener" pkg="robot_localization" type="test_ros_robot_localization_listener" clear_params="true" time-limit="100.0">
-      <param name="parameter_namespace" value="test_estimator" />
+      <remap from="robot_localization" to="test_estimator" />
     </test>
 
 </launch>
